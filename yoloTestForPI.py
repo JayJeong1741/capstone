@@ -4,7 +4,6 @@ from ultralytics import YOLO
 import socketio
 import base64
 import threading
-import platform
 import time
 import json
 import requests
@@ -18,8 +17,9 @@ idCid = id + "&" + cid
 sessionId = ""
 room = ""
 
+# Initialize Picamera2
 picam2 = Picamera2()
-picam2.preview_configuration.main.size = (640, 360)
+picam2.preview_configuration.main.size = (1280, 1280)  # Adjusted to match example
 picam2.preview_configuration.main.format = "RGB888"
 picam2.preview_configuration.align()
 picam2.configure("preview")
@@ -27,8 +27,7 @@ picam2.start()
 
 # 전역 변수
 running = True
-cap = None
-object_states = {}  # 객체 ID별 상태: {obj_key: {'class': cls, 'is_detected': bool, 'start_time': float, 'has_sent': bool, 'count': int}}
+object_states = {}  # 객체 ID별 상태
 frame_lock = threading.Lock()  # 프레임 접근 동기화
 current_frame = None  # 최신 프레임 저장
 room_states = {}  # {room_id: {"send_frames_enabled": bool, "thread": Thread}}
@@ -43,19 +42,20 @@ active_person_ids = {}  # {obj_id: {'last_seen': datetime, 'count': int}} for pe
 
 def object_detection():
     """객체 탐지 및 상태 관리 함수"""
-    global running, cap, object_states, current_frame, last_sent_time, population, active_person_ids
+    global running, object_states, current_frame, last_sent_time, population, active_person_ids
 
     try:
         # YOLO 모델 로딩
-        model = YOLO("capstone2.0_ncnn_model")
+        model = YOLO("capstone2.0_ncnn_model")  # Use your custom model
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
 
         while running:
-            ret, frame = picam2.capture_array()
-            if not ret:
-                print("❌ 웹캠에서 프레임을 읽을 수 없습니다.")
+            # Capture frame using Picamera2
+            frame = picam2.capture_array()
+            if frame is None:
+                print("❌ 카메라에서 프레임을 읽을 수 없습니다.")
                 break
 
             frame_count += 1
@@ -148,12 +148,11 @@ def object_detection():
             # 디버깅용 저장
             cv2.imwrite("debug_frame.jpg", annotated_frame)
 
-            # 화면 표시 (macOS 제외)
-            if platform.system() != "Darwin":
-                cv2.imshow("Camera", annotated_frame)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    running = False
-                    break
+            # 화면 표시
+            cv2.imshow("Camera", annotated_frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                running = False
+                break
 
             time.sleep(0.01)
 
@@ -214,9 +213,10 @@ def send_traffic(population, timestamp):
 
 def cleanup_camera():
     """카메라 리소스 해제"""
-    global cap
-    if cap is not None and cap.isOpened():
-        cap.release()
+    global picam2
+    if picam2 is not None:
+        picam2.stop()
+        picam2.close()
         print("📷 카메라 리소스 해제 완료")
     cv2.destroyAllWindows()
 
