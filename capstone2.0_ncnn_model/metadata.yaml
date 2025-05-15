@@ -1,0 +1,22 @@
+description: Ultralytics YOLO11n model trained on C:/Users/jiho1/PycharmProjects/PythonProject/data5/data.yaml
+author: Ultralytics
+date: '2025-05-15T12:28:33.031919'
+version: 8.3.88
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: carAccident
+  1: dog
+  2: fallen
+  3: guideDog
+  4: person
+  5: whiteCane
+args:
+  batch: 1
+  half: false
