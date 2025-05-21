@@ -28,7 +28,7 @@ room_states = {}  # {room_id: {"send_frames_enabled": bool, "thread": Thread}}
 population = 0
 last_sent_time = datetime.now()
 detection_duration = 3  # 3초 이상 탐지해야 전송
-target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person']  # 탐지 대상 클래스
+target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person','wheelChair','crutches']  # 탐지 대상 클래스
 min_detections = 2  # 안정성: 2프레임 이상 탐지
 population_window = timedelta(seconds=120)  # 인구 수 계산 시간 창
 active_person_ids = {}  # {obj_id: {'last_seen': datetime, 'count': int}} for person tracking
@@ -49,7 +49,7 @@ def object_detection():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 
         # YOLO 모델 로딩
-        model = YOLO("capstone2.0_ncnn_model")
+        model = YOLO("capstone2.1_ncnn_model")
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
