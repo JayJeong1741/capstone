@@ -8,6 +8,7 @@ import time
 import json
 import requests
 from datetime import datetime, timedelta
+import pygame
 
 # Socket.IO 클라이언트 인스턴스 생성
 sio = socketio.Client()
@@ -40,13 +41,76 @@ min_detections = 2  # 안정성: 2프레임 이상 탐지
 population_window = timedelta(seconds=120)  # 인구 수 계산 시간 창
 active_person_ids = {}  # {obj_id: {'last_seen': datetime, 'count': int}} for person tracking
 
+# pygame 초기화
+pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+print("🎵 pygame.mixer 초기화 완료 (frequency=44100, buffer=4096)")
+
+def setTime(class_name):
+    """오디오 재생 시퀀스 처리"""
+    if class_name == 'guideDog' or class_name == 'whiteCane':
+        try:
+
+            # wait.mp3 재생 (12초 대기)
+            pygame.mixer.music.load("wait.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ wait.mp3 재생 중...")
+            time.sleep(12)
+
+            # done.mp3 재생 (4초 대기)
+            pygame.mixer.music.load("done.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ done.mp3 재생 중...")
+            time.sleep(3)
+
+            # beep.mp3 30초 동안 반복 재생 (7초 파일 기준 약 4~5회)
+            BEEP_DURATION = 7  # beep.mp3 길이 (초)
+            PLAY_DURATION = 20  # 총 재생 시간 (초)
+            start_time = time.time()
+            play_count = 0
+
+            pygame.mixer.music.load("beep.mp3")  # 파일 경로 수정 필요
+            print("▶️ beep.mp3 재생 시작 (30초 동안 반복, 예상 횟수: ~4-5회)")
+
+            while time.time() - start_time < PLAY_DURATION:
+                if not pygame.mixer.music.get_busy():
+                    pygame.mixer.music.play()
+
+            pygame.mixer.music.stop()
+            print(f"⏹️ beep.mp3 재생 중지 (총 {play_count}회 반복)")
+
+        except Exception as e:
+            print(f"❌ 오디오 재생 에러: {e}")
+    elif class_name == 'crutches' or class_name == 'wheelChair':
+        try:
+            pygame.mixer.music.load("wait.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ wait.mp3 재생 중...")
+            time.sleep(12)
+
+            pygame.mixer.music.load("plz.mp3")  # 파일 경로 수정 필요
+            print("▶️ plz.mp3 재생 중...")
+            PLAY_DURATION = 25  # 총 재생 시간 (초)
+            start_time = time.time()
+            play_count = 0
+
+            while time.time() - start_time < PLAY_DURATION:
+                if not pygame.mixer.music.get_busy():
+                    pygame.mixer.music.play()
+                    time.sleep(10)
+
+            pygame.mixer.music.stop()
+            print(f"⏹️ beep.mp3 재생 중지 (총 {play_count}회 반복)")
+
+        except Exception as e:
+            print(f"❌ 오디오 재생 에러: {e}")
+
 def object_detection():
     """객체 탐지 및 상태 관리 함수"""
     global running, object_states, current_frame, last_sent_time, population, active_person_ids
 
     try:
         # YOLO 모델 로딩
-        model = YOLO("capstone2.0_ncnn_model")  # Use your custom model
+        model = YOLO("capstone2.2_ncnn_model")  # Use your custom model
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
@@ -123,6 +187,10 @@ def object_detection():
                         json_str = json.dumps(data)
                         if class_name == 'fallen' or class_name == 'carAccident':
                             sio.emit("emergency_detected", json_str)
+                            state['has_sent'] = True
+                        else:
+                            # 별도 스레드에서 오디오 재생
+                            threading.Thread(target=setTime, args=(class_name, ), daemon=True).start()
                             state['has_sent'] = True
 
             # 사라진 객체 처리

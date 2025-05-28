@@ -8,6 +8,7 @@ import time
 import json
 import requests
 from datetime import datetime, timedelta
+import pygame
 
 # Socket.IO 클라이언트 인스턴스 생성
 sio = socketio.Client()
@@ -20,25 +21,86 @@ room = ""
 # 전역 변수
 running = True
 cap = None
-object_states = {}  # 객체 ID별 상태: {obj_key: {'class': cls, 'is_detected': bool, 'start_time': float, 'has_sent': bool, 'count': int}}
-frame_lock = threading.Lock()  # 프레임 접근 동기화
-current_frame = None  # 최신 프레임 저장
-room_states = {}  # {room_id: {"send_frames_enabled": bool, "thread": Thread}}
-
+object_states = {}
+frame_lock = threading.Lock()
+current_frame = None
+room_states = {}
 population = 0
 last_sent_time = datetime.now()
-detection_duration = 3  # 3초 이상 탐지해야 전송
-target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person','wheelChair','crutches']  # 탐지 대상 클래스
-min_detections = 2  # 안정성: 2프레임 이상 탐지
-population_window = timedelta(seconds=120)  # 인구 수 계산 시간 창
-active_person_ids = {}  # {obj_id: {'last_seen': datetime, 'count': int}} for person tracking
+detection_duration = 3
+target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person', 'wheelChair', 'crutches']
+min_detections = 2
+population_window = timedelta(seconds=120)
+active_person_ids = {}
+
+# pygame 초기화
+pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+print("🎵 pygame.mixer 초기화 완료 (frequency=44100, buffer=4096)")
+
+def setTime(class_name):
+    """오디오 재생 시퀀스 처리"""
+    if class_name == 'guideDog' or class_name == 'whiteCane':
+        try:
+
+            # wait.mp3 재생 (12초 대기)
+            pygame.mixer.music.load("wait.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ wait.mp3 재생 중...")
+            time.sleep(12)
+
+            # done.mp3 재생 (4초 대기)
+            pygame.mixer.music.load("done.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ done.mp3 재생 중...")
+            time.sleep(3)
+
+            # beep.mp3 30초 동안 반복 재생 (7초 파일 기준 약 4~5회)
+            BEEP_DURATION = 7  # beep.mp3 길이 (초)
+            PLAY_DURATION = 20  # 총 재생 시간 (초)
+            start_time = time.time()
+            play_count = 0
+
+            pygame.mixer.music.load("beep.mp3")  # 파일 경로 수정 필요
+            print("▶️ beep.mp3 재생 시작 (30초 동안 반복, 예상 횟수: ~4-5회)")
+
+            while time.time() - start_time < PLAY_DURATION:
+                if not pygame.mixer.music.get_busy():
+                    pygame.mixer.music.play()
+
+            pygame.mixer.music.stop()
+            print(f"⏹️ beep.mp3 재생 중지 (총 {play_count}회 반복)")
+
+        except Exception as e:
+            print(f"❌ 오디오 재생 에러: {e}")
+    elif class_name == 'crutches' or class_name == 'wheelChair':
+        try:
+            pygame.mixer.music.load("wait.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.play()
+            print("▶️ wait.mp3 재생 중...")
+            time.sleep(12)
+
+            pygame.mixer.music.load("plz.mp3")  # 파일 경로 수정 필요
+            print("▶️ plz.mp3 재생 중...")
+            PLAY_DURATION = 25  # 총 재생 시간 (초)
+            start_time = time.time()
+            play_count = 0
+
+            while time.time() - start_time < PLAY_DURATION:
+                if not pygame.mixer.music.get_busy():
+                    pygame.mixer.music.play()
+                    time.sleep(10)
+
+            pygame.mixer.music.stop()
+            print(f"⏹️ beep.mp3 재생 중지 (총 {play_count}회 반복)")
+
+        except Exception as e:
+            print(f"❌ 오디오 재생 에러: {e}")
 
 def object_detection():
     """객체 탐지 및 상태 관리 함수"""
     global running, cap, object_states, current_frame, last_sent_time, population, active_person_ids
 
     try:
-        # 웹캠 설정
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("❌ 웹캠을 열 수 없습니다.")
@@ -48,8 +110,7 @@ def object_detection():
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 
-        # YOLO 모델 로딩
-        model = YOLO("capstone2.1_ncnn_model")
+        model = YOLO("capstone2.2_ncnn_model")
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
@@ -62,18 +123,15 @@ def object_detection():
 
             frame_count += 1
             if frame_count % 2 != 0:
-                continue  # 2프레임마다 1프레임 처리
+                continue
 
-            # YOLO 객체 추적
             results = model.track(source=frame, conf=0.7, iou=0.45, persist=True)
             annotated_frame = results[0].plot()
 
-            # 현재 프레임 저장
             with frame_lock:
                 current_frame = annotated_frame.copy()
 
-            # 현재 프레임에서 탐지된 객체
-            current_objects = set()  # (class_name, obj_id)
+            current_objects = set()
             current_time = time.time()
             current_datetime = datetime.now()
 
@@ -90,10 +148,8 @@ def object_detection():
                         current_objects.add((class_name, obj_id))
             print("======================")
 
-            # 인구 수 관리
             manage_population(current_objects, current_datetime)
 
-            # 탐지 상태 처리 및 메시지 전송
             for class_name, obj_id in current_objects:
                 obj_key = f"{class_name}_{obj_id}"
                 if obj_key not in object_states:
@@ -126,8 +182,11 @@ def object_detection():
                         if class_name == 'fallen' or class_name == 'carAccident':
                             sio.emit("emergency_detected", json_str)
                             state['has_sent'] = True
+                        else:
+                            # 별도 스레드에서 오디오 재생
+                            threading.Thread(target=setTime, args=(class_name, ), daemon=True).start()
+                            state['has_sent'] = True
 
-            # 사라진 객체 처리
             for obj_key in list(object_states.keys()):
                 class_name, obj_id = obj_key.split('_')
                 obj_id = int(obj_id)
@@ -137,7 +196,6 @@ def object_detection():
                         print(f"ℹ️ {class_name} (ID: {obj_id}) 탐지 중단, 상태 리셋")
                         del object_states[obj_key]
 
-            # FPS 표시
             inference_time = results[0].speed['inference']
             fps = 1000 / inference_time if inference_time > 0 else 0
             text = f'FPS: {fps:.1f}'
@@ -147,10 +205,8 @@ def object_detection():
             text_y = text_size[1] + 10
             cv2.putText(annotated_frame, text, (text_x, text_y), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-            # 디버깅용 저장
             cv2.imwrite("debug_frame.jpg", annotated_frame)
 
-            # 화면 표시 (macOS 제외)
             if platform.system() != "Darwin":
                 cv2.imshow("Camera", annotated_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -168,8 +224,6 @@ def object_detection():
 def manage_population(current_objects, current_datetime):
     """인구 수 관리 및 전송 함수"""
     global population, last_sent_time, active_person_ids
-
-    # 현재 프레임에서 탐지된 사람 처리
     for class_name, obj_id in current_objects:
         if class_name == 'person':
             if obj_id not in active_person_ids:
@@ -180,7 +234,6 @@ def manage_population(current_objects, current_datetime):
                 population += 1
                 print(f"👤 사람 (ID: {obj_id}) 안정적으로 탐지됨, population: {population}")
 
-    # 만료된 사람 ID 제거
     expired_ids = [
         obj_id for obj_id, info in active_person_ids.items()
         if (current_datetime - info['last_seen']) > timedelta(seconds=10)
@@ -189,7 +242,6 @@ def manage_population(current_objects, current_datetime):
         del active_person_ids[obj_id]
         print(f"🗑️ 사람 (ID: {obj_id}) 탐지 만료, 제거됨")
 
-    # 1분마다 인구 수 전송
     if current_datetime - last_sent_time >= population_window:
         send_traffic(population, current_datetime)
         population = 0
@@ -198,7 +250,7 @@ def manage_population(current_objects, current_datetime):
 
 def send_traffic(population, timestamp):
     """인구 수 데이터를 서버로 전송"""
-    url = "http://localhost:8080/main/api/traffic"
+    url = "http://192.168.35.41:8080/main/api/traffic"
     data = {
         "id": {
             "id": id,
@@ -222,7 +274,6 @@ def cleanup_camera():
         print("📷 카메라 리소스 해제 완료")
     cv2.destroyAllWindows()
 
-# Socket.IO 이벤트 핸들러
 @sio.event
 def connect():
     print("✅ 서버에 연결됨")
@@ -291,7 +342,7 @@ if __name__ == "__main__":
     try:
         threading.Thread(target=object_detection, daemon=True).start()
         print("🔄 서버에 연결 중...")
-        sio.connect("http://localhost:3000")
+        sio.connect("http://192.168.35.41:3000")
         sio.emit("connectionForAlarm", cid)
         sio.wait()
     except KeyboardInterrupt:
@@ -305,4 +356,5 @@ if __name__ == "__main__":
         if sio.connected:
             sio.disconnect()
         cleanup_camera()
+        pygame.mixer.quit()
         print("👋 프로그램 종료")
