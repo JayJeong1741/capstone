@@ -36,7 +36,7 @@ room_states = {}  # {room_id: {"send_frames_enabled": bool, "thread": Thread}}
 population = 0
 last_sent_time = datetime.now()
 detection_duration = 3  # 3초 이상 탐지해야 전송
-target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person']  # 탐지 대상 클래스
+target_classes = ['guideDog', 'dog', 'fallen', 'whiteCane', 'carAccident', 'person', 'wheelChair', 'crutches', 'gudieWalker']
 min_detections = 2  # 안정성: 2프레임 이상 탐지
 population_window = timedelta(seconds=120)  # 인구 수 계산 시간 창
 active_person_ids = {}  # {obj_id: {'last_seen': datetime, 'count': int}} for person tracking
@@ -57,7 +57,7 @@ def setTime(class_name):
             time.sleep(12)
 
             # done.mp3 재생 (4초 대기)
-            pygame.mixer.music.load("done.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.load("mp3/done.mp3")  # 파일 경로 수정 필요
             pygame.mixer.music.play()
             print("▶️ done.mp3 재생 중...")
             time.sleep(3)
@@ -68,7 +68,7 @@ def setTime(class_name):
             start_time = time.time()
             play_count = 0
 
-            pygame.mixer.music.load("beep.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.load("mp3/beep.mp3")  # 파일 경로 수정 필요
             print("▶️ beep.mp3 재생 시작 (30초 동안 반복, 예상 횟수: ~4-5회)")
 
             while time.time() - start_time < PLAY_DURATION:
@@ -87,7 +87,7 @@ def setTime(class_name):
             print("▶️ wait.mp3 재생 중...")
             time.sleep(12)
 
-            pygame.mixer.music.load("plz.mp3")  # 파일 경로 수정 필요
+            pygame.mixer.music.load("mp3/plz.mp3")  # 파일 경로 수정 필요
             print("▶️ plz.mp3 재생 중...")
             PLAY_DURATION = 25  # 총 재생 시간 (초)
             start_time = time.time()
@@ -110,7 +110,7 @@ def object_detection():
 
     try:
         # YOLO 모델 로딩
-        model = YOLO("capstone2.2_ncnn_model")  # Use your custom model
+        model = YOLO("model/capstone2.2_ncnn_model")  # Use your custom model
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
