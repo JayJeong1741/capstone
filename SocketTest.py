@@ -110,7 +110,7 @@ def object_detection():
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 
-        model = YOLO("model/capstone2.2_ncnn_model")
+        model = YOLO("model/capstone2.3_ncnn_model")
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
