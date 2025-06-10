@@ -108,9 +108,9 @@ def object_detection():
             return
 
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
 
-        model = YOLO("model/capstone2.3_ncnn_model")
+        model = YOLO("model/capstone3.0_ncnn_model")
         frame_count = 0
 
         print("🔍 객체 탐지 시작...")
@@ -125,7 +125,7 @@ def object_detection():
             if frame_count % 2 != 0:
                 continue
 
-            results = model.track(source=frame, conf=0.7, iou=0.45, persist=True)
+            results = model.track(source=frame, conf=0.65, iou=0.45, persist=True)
             annotated_frame = results[0].plot()
 
             with frame_lock:
@@ -250,7 +250,7 @@ def manage_population(current_objects, current_datetime):
 
 def send_traffic(population, timestamp):
     """인구 수 데이터를 서버로 전송"""
-    url = "http://192.168.35.41:8080/main/api/traffic"
+    url = "http://192.168.35.121:8080/main/api/traffic"
     data = {
         "id": {
             "id": id,
@@ -342,7 +342,7 @@ if __name__ == "__main__":
     try:
         threading.Thread(target=object_detection, daemon=True).start()
         print("🔄 서버에 연결 중...")
-        sio.connect("http://192.168.35.41:3000")
+        sio.connect("http://192.168.35.121:3000")
         sio.emit("connectionForAlarm", cid)
         sio.wait()
     except KeyboardInterrupt:

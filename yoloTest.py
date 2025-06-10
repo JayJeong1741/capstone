@@ -32,7 +32,7 @@ def send_frames():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 
         # YOLO 모델 로딩
-        model = YOLO("model/capstone2.0.pt")
+        model = YOLO("model/capstone2.5.pt")
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]  # JPEG 품질 설정
         frame_count = 0  # 프레임 카운터
 
