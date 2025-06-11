@@ -25,7 +25,7 @@ while True:
         break
 
     # Perform inference with YOLOv11n
-    results = model.track(source=frame, conf=0.65, iou=0.45, persist=True)
+    results = model.track(source=frame, conf=0.8, iou=0.45, persist=True)
 
     # Get the annotated frame with bounding boxes
     annotated_frame = results[0].plot()
