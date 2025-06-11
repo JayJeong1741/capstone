@@ -381,7 +381,7 @@ def stop_sending_frames(data):
         print(f"❌ stopVideo 이벤트 처리 에러: {e}")
 
 def send_frames(room_id):
-    """프레임 전송 함수"""
+    """프레임 전송 함수 (화질 낮춤)"""
     global running, current_frame
     try:
         while room_states.get(room_id, {}).get("send_frames_enabled", False):
@@ -391,7 +391,18 @@ def send_frames(room_id):
                 print(f"{room_id} 방에서 프레임 없음, 대기 중...")
                 time.sleep(0.1)
                 continue
-            _, buffer = cv2.imencode(".jpg", frame)
+
+            # 1. 해상도 줄이기 (예: 50%로 축소)
+            scale_percent = 70  # 해상도 축소 비율
+            width = int(frame.shape[1] * scale_percent / 100)
+            height = int(frame.shape[0] * scale_percent / 100)
+            frame_resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+
+            # 2. JPEG 압축률 낮추기 (0~100, 낮을수록 저화질)
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]  # 50% 품질
+            _, buffer = cv2.imencode(".jpg", frame_resized, encode_param)
+
+            # 3. Base64로 인코딩
             frame_data = base64.b64encode(buffer).decode("utf-8")
             print(f"프레임 전송 시도: room_id={room_id}, 데이터 크기={len(frame_data)}")
             sio.emit("frame", {"room_id": room_id, "data": frame_data})
