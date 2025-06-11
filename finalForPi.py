@@ -294,7 +294,7 @@ def manage_population(current_objects, current_datetime):
 
 def send_traffic(population, timestamp):
     """인구 수 데이터를 서버로 전송"""
-    url = "http://172.171.251.7:8080/main/api/traffic"
+    url = "http://118.218.212.147:59727/main/api/traffic"
     data = {
         "id": {
             "id": id,
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     try:
         threading.Thread(target=object_detection, daemon=True).start()
         print("🔄 서버에 연결 중...")
-        sio.connect("http://172.171.251.7:3000")
+        sio.connect("http://118.218.212.147:59726")
         sio.emit("connectionForAlarm", cid)
         sio.wait()
     except KeyboardInterrupt:

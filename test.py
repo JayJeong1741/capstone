@@ -3,7 +3,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Load the YOLOv11n model
-model = YOLO("model/capstone2.5_ncnn_model")
+model = YOLO("model/best_ncnn_model")
 
 # Initialize the webcam (0 is the default camera)
 cap = cv2.VideoCapture(0)
